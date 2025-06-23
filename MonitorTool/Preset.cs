@@ -10,6 +10,8 @@ namespace MonitorTool
         public int hz { get; set; }
         public int posX { get; set; }
         public int posY { get; set; }
+        public int bitsPerPel { get; set; }
+        public int orientation { get; set; } // 0: Landscape, 1: Portrait, 2: Landscape (flipped), 3: Portrait (flipped)
     }
 
     public class Preset

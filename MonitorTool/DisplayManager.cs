@@ -49,6 +49,9 @@ namespace MonitorTool
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         public static extern int ChangeDisplaySettingsEx(string lpszDeviceName, ref DEVMODE lpDevMode, IntPtr hwnd, int dwflags, IntPtr lParam);
 
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        public static extern int ChangeDisplaySettingsEx(string lpszDeviceName, IntPtr lpDevMode, IntPtr hwnd, int dwflags, IntPtr lParam);
+
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         public struct DISPLAY_DEVICE
         {
@@ -105,7 +108,9 @@ namespace MonitorTool
                             height = (int)mode.dmPelsHeight,
                             hz = (int)mode.dmDisplayFrequency,
                             posX = mode.dmPositionX,
-                            posY = mode.dmPositionY
+                            posY = mode.dmPositionY,
+                            bitsPerPel = (int)mode.dmBitsPerPel,
+                            orientation = (int)mode.dmDisplayOrientation
                         });
                     }
                 }
@@ -116,11 +121,33 @@ namespace MonitorTool
 
         public static void ApplyPreset(Preset preset)
         {
-            // TODO: ChangeDisplaySettingsEx ile preset uygula
-            // Şimdilik sadece ekrana yazdırıyor
+            const int DM_PELSWIDTH = 0x80000;
+            const int DM_PELSHEIGHT = 0x100000;
+            const int DM_DISPLAYFREQUENCY = 0x400000;
+            const int DM_POSITION = 0x20;
+            const int DM_BITSPERPEL = 0x40000;
+            const int DM_DISPLAYORIENTATION = 0x80;
+            const int CDS_UPDATEREGISTRY = 0x1;
             foreach (var m in preset.monitors)
             {
-                Console.WriteLine($"{m.deviceName}: {m.width}x{m.height}@{m.hz}Hz ({m.posX},{m.posY})");
+                var mode = new DisplayManager.DEVMODE
+                {
+                    dmDeviceName = m.deviceName,
+                    dmSize = (ushort)Marshal.SizeOf(typeof(DisplayManager.DEVMODE)),
+                    dmPelsWidth = (uint)m.width,
+                    dmPelsHeight = (uint)m.height,
+                    dmDisplayFrequency = (uint)m.hz,
+                    dmPositionX = m.posX,
+                    dmPositionY = m.posY,
+                    dmBitsPerPel = (uint)m.bitsPerPel,
+                    dmDisplayOrientation = (uint)m.orientation,
+                    dmFields = (uint)(DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY | DM_POSITION | DM_BITSPERPEL | DM_DISPLAYORIENTATION)
+                };
+                int result = DisplayManager.ChangeDisplaySettingsEx(m.deviceName, ref mode, IntPtr.Zero, CDS_UPDATEREGISTRY, IntPtr.Zero);
+                if (result == 0)
+                    Console.WriteLine($"Applied: {m.deviceName} {m.width}x{m.height}@{m.hz}Hz {m.bitsPerPel}bpp ({m.posX},{m.posY}) orientation:{m.orientation}");
+                else
+                    Console.WriteLine($"Failed to apply: {m.deviceName} (Error code: {result})");
             }
         }
     }
